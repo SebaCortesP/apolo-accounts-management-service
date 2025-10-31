@@ -4,6 +4,7 @@ import com.duocuc.apolo.dto.ApiResponse;
 import com.duocuc.apolo.dto.ChangePasswordRequest;
 import com.duocuc.apolo.models.User;
 import com.duocuc.apolo.repositories.UserRepository;
+import com.duocuc.apolo.utils.JwtTokenUtil;
 import com.duocuc.apolo.repositories.RoleRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +18,12 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final JwtTokenUtil jwtTokenUtil;
 
-    public UserController(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.jwtTokenUtil = jwtTokenUtil;
     }
 
     @GetMapping
@@ -103,7 +106,7 @@ public class UserController {
 
     // LOGIN
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<User>> login(@RequestBody User credentials) {
+    public ResponseEntity<ApiResponse<String>> login(@RequestBody User credentials) {
         Optional<User> userOpt = userRepository.findByEmail(credentials.getEmail());
         if (userOpt.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -114,9 +117,11 @@ public class UserController {
             return ResponseEntity.badRequest()
                     .body(new ApiResponse<>(false, "Contraseña incorrecta", null));
         }
-
-        return ResponseEntity.ok(new ApiResponse<>(true, "Inicio de sesión exitoso", user));
+        //token JWT
+        String token = jwtTokenUtil.generateToken(user.getEmail(), user.getRole().getName());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Inicio de sesión exitoso", token));
     }
+
 
     // CAMBIAR CONTRASEÑA
    @PostMapping("/change-password/{id}")
