@@ -1,12 +1,14 @@
 package com.duocuc.apolo.controllers;
 
-import com.duocuc.apolo.dto.ApiResponse;
-import com.duocuc.apolo.models.Role;
-import com.duocuc.apolo.repositories.RoleRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import com.duocuc.apolo.dto.ApiResponse;
+import com.duocuc.apolo.dto.RoleDto;
+import com.duocuc.apolo.mappers.RoleMapper;
+import com.duocuc.apolo.models.Role;
+import com.duocuc.apolo.repositories.RoleRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,25 +17,26 @@ import java.util.Optional;
 @RequestMapping("/roles")
 public class RoleController {
 
- @Autowired
+    @Autowired
     private RoleRepository roleRepository;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Role>>> getAll() {
+    public ResponseEntity<ApiResponse<List<RoleDto>>> getAll() {
         List<Role> roles = roleRepository.findAll();
-        return ResponseEntity.ok(new ApiResponse<>(true, "Roles obtenidos correctamente", roles));
+        return ResponseEntity.ok(ApiResponse.success("Roles obtenidos correctamente",
+                roles.stream().map(RoleMapper::toDto).toList()));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Role>> create(@RequestBody Role role) {
+    public ResponseEntity<ApiResponse<RoleDto>> create(@RequestBody RoleDto role) {
         if (roleRepository.existsByName(role.getName())) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "El rol '" + role.getName() + "' ya existe", null));
+                    .body(ApiResponse.failure("El rol '" + role.getName() + "' ya existe"));
         }
 
-        Role savedRole = roleRepository.save(role);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Rol creado correctamente", savedRole));
+        Role savedRole = roleRepository.save(RoleMapper.toEntity(role));
+        return ResponseEntity.ok(ApiResponse.success("Rol creado correctamente", RoleMapper.toDto(savedRole)));
     }
 
     @DeleteMapping("/{id}")
@@ -41,45 +44,46 @@ public class RoleController {
         if (!roleRepository.existsById(id)) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "El rol no existe", null));
+                    .body(ApiResponse.failure("El rol no existe"));
         }
 
         roleRepository.deleteById(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Rol eliminado correctamente", null));
+        return ResponseEntity.ok(ApiResponse.success("Rol eliminado correctamente", null));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Role>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<RoleDto>> getById(@PathVariable Long id) {
         Optional<Role> role = roleRepository.findById(id);
         if (role.isEmpty()) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "El rol con ID " + id + " no existe", null));
+                    .body( ApiResponse.failure( "El rol con ID " + id + " no existe"));
         }
-        return ResponseEntity.ok(new ApiResponse<>(true, "Rol obtenido correctamente", role.get()));
+        return ResponseEntity.ok( ApiResponse.success( "Rol obtenido correctamente", RoleMapper.toDto(role.get())));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Role>> update(@PathVariable Long id, @RequestBody Role updatedRole) {
+    public ResponseEntity<ApiResponse<RoleDto>> update(@PathVariable Long id, @RequestBody RoleDto updatedRole) {
         Optional<Role> roleOpt = roleRepository.findById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "El rol con ID " + id + " no existe", null));
+                    .body( ApiResponse.failure( "El rol con ID " + id + " no existe"));
         }
 
         Role role = roleOpt.get();
 
         // Validar nombre duplicado en otro registro
-        if (roleRepository.existsByName(updatedRole.getName()) && !role.getName().equalsIgnoreCase(updatedRole.getName())) {
+        if (roleRepository.existsByName(updatedRole.getName())
+                && !role.getName().equalsIgnoreCase(updatedRole.getName())) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "El rol '" + updatedRole.getName() + "' ya existe", null));
+                    .body( ApiResponse.failure( "El rol '" + updatedRole.getName() + "' ya existe"));
         }
 
         role.setName(updatedRole.getName());
         Role saved = roleRepository.save(role);
 
-        return ResponseEntity.ok(new ApiResponse<>(true, "Rol actualizado correctamente", saved));
+        return ResponseEntity.ok( ApiResponse.success( "Rol actualizado correctamente", RoleMapper.toDto(saved)));
     }
 }

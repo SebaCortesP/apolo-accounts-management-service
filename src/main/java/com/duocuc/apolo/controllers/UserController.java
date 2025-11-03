@@ -2,6 +2,9 @@ package com.duocuc.apolo.controllers;
 
 import com.duocuc.apolo.dto.ApiResponse;
 import com.duocuc.apolo.dto.ChangePasswordRequest;
+import com.duocuc.apolo.dto.UserDto;
+import com.duocuc.apolo.mappers.RoleMapper;
+import com.duocuc.apolo.mappers.UserMapper;
 import com.duocuc.apolo.models.User;
 import com.duocuc.apolo.repositories.UserRepository;
 import com.duocuc.apolo.utils.JwtTokenUtil;
@@ -26,35 +29,35 @@ public class UserController {
         this.jwtTokenUtil = jwtTokenUtil;
     }
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<User>>> getAll() {
+     @GetMapping
+    public ResponseEntity<ApiResponse<List<UserDto>>> getAll() {
         List<User> users = userRepository.findAll();
-        return ResponseEntity.ok(new ApiResponse<>(true, "Usuarios obtenidos correctamente", users));
+        return ResponseEntity.ok( ApiResponse.success( "Usuarios obtenidos correctamente", users.stream().map(UserMapper::toDto).toList()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<User>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserDto>> getById(@PathVariable Long id) {
         Optional<User> user = userRepository.findById(id);
         if (user.isEmpty()) {
             return ResponseEntity
                     .status(404)
                     .body(new ApiResponse<>(false, "Usuario no encontrado", null));
         }
-        return ResponseEntity.ok(new ApiResponse<>(true, "Usuario encontrado", user.get()));
+        return ResponseEntity.ok( ApiResponse.success( "Usuario encontrado", UserMapper.toDto(user.get())));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<User>> create(@RequestBody User user) {
+    public ResponseEntity<ApiResponse<UserDto>> create(@RequestBody UserDto user) {
         if (userRepository.existsByEmail(user.getEmail())) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "El correo ya está registrado.", null));
+                    .body( ApiResponse.failure( "El correo ya está registrado."));
         }
 
         if (user.getRole() == null || user.getRole().getId() == null) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "Debe especificar un rol válido.", null));
+                    .body( ApiResponse.failure( "Debe especificar un rol válido."));
         }
 
         var role = roleRepository.findById(user.getRole().getId())
@@ -63,23 +66,24 @@ public class UserController {
         if (role == null) {
             return ResponseEntity
                     .badRequest()
-                    .body(new ApiResponse<>(false, "Rol no encontrado.", null));
+                    .body( ApiResponse.failure( "Rol no encontrado."));
         }
 
-        user.setRole(role);
-        User saved = userRepository.save(user);
+        User newUser = UserMapper.toEntity(user);
+        newUser.setRole(role);
+        User saved = userRepository.save(newUser);
         return ResponseEntity
-                .ok(new ApiResponse<>(true, "Usuario creado exitosamente", saved));
+                .ok( ApiResponse.success( "Usuario creado exitosamente", UserMapper.toDto(saved)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<User>> update(@PathVariable Long id, @RequestBody User updatedUser) {
+    public ResponseEntity<ApiResponse<UserDto>> update(@PathVariable Long id, @RequestBody UserDto updatedUser) {
         Optional<User> existing = userRepository.findById(id);
 
         if (existing.isEmpty()) {
             return ResponseEntity
                     .status(404)
-                    .body(new ApiResponse<>(false, "Usuario no encontrado", null));
+                    .body(ApiResponse.failure( "Usuario no encontrado"));
         }
 
         User user = existing.get();
@@ -87,10 +91,10 @@ public class UserController {
         user.setLastname(updatedUser.getLastname());
         user.setEmail(updatedUser.getEmail());
         user.setPassword(updatedUser.getPassword());
-        user.setRole(updatedUser.getRole());
+        user.setRole(RoleMapper.toEntity(updatedUser.getRole()));
 
         User saved = userRepository.save(user);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Usuario actualizado correctamente", saved));
+        return ResponseEntity.ok( ApiResponse.success("Usuario actualizado correctamente", UserMapper.toDto(saved)));
     }
 
     @DeleteMapping("/{id}")
@@ -98,10 +102,10 @@ public class UserController {
         if (!userRepository.existsById(id)) {
             return ResponseEntity
                     .status(404)
-                    .body(new ApiResponse<>(false, "Usuario no encontrado", null));
+                    .body( ApiResponse.failure("Usuario no encontrado"));
         }
         userRepository.deleteById(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "Usuario eliminado correctamente", null));
+        return ResponseEntity.ok(ApiResponse.success("Usuario eliminado correctamente", null));
     }
 
     // LOGIN

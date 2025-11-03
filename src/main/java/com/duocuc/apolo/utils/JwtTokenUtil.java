@@ -11,7 +11,7 @@ import java.util.Date;
 public class JwtTokenUtil {
 
     // Clave secreta (usa una cadena larga y segura)
-    private static final String SECRET_KEY = "EstaEsUnaClaveSuperSecretaParaApolo123456789";
+    private static final String SECRET_KEY = "TNKJENFKJFKKSDFJDSKFJI34JUR9U4JFJM499T99TJMFMF";
 
     // Duración del token: 1 día
     private static final long EXPIRATION_TIME = 24 * 60 * 60 * 1000;
