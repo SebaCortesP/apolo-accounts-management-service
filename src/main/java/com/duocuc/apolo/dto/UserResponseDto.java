@@ -14,8 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDto {
-    
+public class UserResponseDto {
     private Long id;
     @NotBlank(message = "Full name is mandatory")
     private String name;
@@ -26,7 +25,4 @@ public class UserDto {
     @NotBlank(message = "Role name is mandatory")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private RoleDto      role;
-    @Nullable()
-    private String password;
-
 }

@@ -1,7 +1,9 @@
 package com.duocuc.apolo.controllers;
 
+import com.duocuc.apolo.clients.LabClient;
 import com.duocuc.apolo.dto.ApiResponse;
 import com.duocuc.apolo.dto.ChangePasswordRequest;
+import com.duocuc.apolo.dto.PacientCreateRequest;
 import com.duocuc.apolo.dto.UserDto;
 import com.duocuc.apolo.mappers.RoleMapper;
 import com.duocuc.apolo.mappers.UserMapper;
@@ -22,11 +24,13 @@ public class UserController {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final JwtTokenUtil jwtTokenUtil;
+    private final LabClient labClient;
 
-    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil) {
+    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil, LabClient labClient) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtTokenUtil = jwtTokenUtil;
+        this.labClient = labClient;
     }
 
      @GetMapping
@@ -72,6 +76,15 @@ public class UserController {
         User newUser = UserMapper.toEntity(user);
         newUser.setRole(role);
         User saved = userRepository.save(newUser);
+
+        PacientCreateRequest req = new PacientCreateRequest(
+            saved.getId(),
+            saved.getName(),
+            saved.getLastname(),
+            saved.getEmail()
+        );
+
+        labClient.createPacient(req);
         return ResponseEntity
                 .ok( ApiResponse.success( "Usuario creado exitosamente", UserMapper.toDto(saved)));
     }
@@ -122,7 +135,7 @@ public class UserController {
                     .body(new ApiResponse<>(false, "Contraseña incorrecta", null));
         }
         //token JWT
-        String token = jwtTokenUtil.generateToken(user.getEmail(), user.getRole().getName());
+        String token = jwtTokenUtil.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
         return ResponseEntity.ok(new ApiResponse<>(true, "Inicio de sesión exitoso", token));
     }
 
@@ -150,6 +163,25 @@ public class UserController {
         userRepository.save(user);
 
         return ResponseEntity.ok(new ApiResponse<>(true, "Contraseña actualizada correctamente", null));
+    }
+
+    @GetMapping("/role/paciente")
+    public ResponseEntity<ApiResponse<List<UserDto>>> getPacientes() {
+        // Buscar el rol "Paciente" en la tabla roles
+        var pacienteRole = roleRepository.findByName("Paciente").orElse(null);
+        if (pacienteRole == null) {
+            return ResponseEntity
+                    .status(404)
+                    .body(ApiResponse.failure("Rol Paciente no encontrado"));
+        }
+
+        // Buscar usuarios que tengan ese rol
+        List<User> pacientes = userRepository.findByRole(pacienteRole);
+        List<UserDto> dtos = pacientes.stream()
+                .map(UserMapper::toDto)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success("Pacientes obtenidos correctamente", dtos));
     }
 
 
