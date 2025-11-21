@@ -22,8 +22,8 @@ public class User {
     @NotBlank(message = "El nombre del usuario es obligatorio")
     private String name;
 
-    @Column(nullable = false)
-    @NotBlank(message = "El apellido del usuario es obligatorio")
+    @Column(nullable = true)
+    // @NotBlank(message = "El apellido del usuario es obligatorio")
     private String lastname;
     
     @Column(nullable = false, unique = true)

@@ -1,5 +1,6 @@
 package com.duocuc.apolo.clients;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -13,10 +14,12 @@ import reactor.core.publisher.Mono;
 public class LabClient {
 
     private final WebClient webClient;
-
+    @Value("${lab.service.url}")
+    private String labServiceUrl;
+    
     public LabClient(WebClient.Builder builder) {
         // Ajusta el puerto al real del microservicio LAB
-        this.webClient = builder.baseUrl("http://localhost:8090").build();
+        this.webClient = builder.baseUrl(labServiceUrl).build();
     }
 
     public void createPacient(PacientCreateRequest request) {

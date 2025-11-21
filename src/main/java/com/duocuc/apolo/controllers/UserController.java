@@ -12,6 +12,7 @@ import com.duocuc.apolo.repositories.UserRepository;
 import com.duocuc.apolo.utils.JwtTokenUtil;
 import com.duocuc.apolo.repositories.RoleRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,12 +26,14 @@ public class UserController {
     private final RoleRepository roleRepository;
     private final JwtTokenUtil jwtTokenUtil;
     private final LabClient labClient;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil, LabClient labClient) {
+    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil, LabClient labClient, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtTokenUtil = jwtTokenUtil;
         this.labClient = labClient;
+        this.passwordEncoder = passwordEncoder;
     }
 
      @GetMapping
@@ -74,6 +77,7 @@ public class UserController {
         }
 
         User newUser = UserMapper.toEntity(user);
+        newUser.setPassword(passwordEncoder.encode(user.getPassword()));
         newUser.setRole(role);
         User saved = userRepository.save(newUser);
 
@@ -130,14 +134,20 @@ public class UserController {
                     .body(new ApiResponse<>(false, "Correo no registrado", null));
         }
         User user = userOpt.get();
-        if (!user.getPassword().equals(credentials.getPassword())) {
+        // --- Comparación correcta con BCrypt ---
+        if (!passwordEncoder.matches(credentials.getPassword(), user.getPassword())) {
             return ResponseEntity.badRequest()
                     .body(new ApiResponse<>(false, "Contraseña incorrecta", null));
         }
-        //token JWT
-        String token = jwtTokenUtil.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
+        // Generar token JWT
+        String token = jwtTokenUtil.generateToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().getName()
+        );
         return ResponseEntity.ok(new ApiResponse<>(true, "Inicio de sesión exitoso", token));
     }
+
 
 
     // CAMBIAR CONTRASEÑA
@@ -168,7 +178,7 @@ public class UserController {
     @GetMapping("/role/paciente")
     public ResponseEntity<ApiResponse<List<UserDto>>> getPacientes() {
         // Buscar el rol "Paciente" en la tabla roles
-        var pacienteRole = roleRepository.findByName("Paciente").orElse(null);
+        var pacienteRole = roleRepository.findByName("PACIENTE").orElse(null);
         if (pacienteRole == null) {
             return ResponseEntity
                     .status(404)
