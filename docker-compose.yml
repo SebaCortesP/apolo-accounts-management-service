@@ -1,0 +1,14 @@
+version: '3'
+services:
+  app:
+    image: apolo-accouunts-management-services-app
+    build:
+      context: .
+    ports:
+      - "8081:8081"
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge  
