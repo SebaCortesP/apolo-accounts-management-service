@@ -9,6 +9,8 @@ import com.duocuc.apolo.mappers.RoleMapper;
 import com.duocuc.apolo.mappers.UserMapper;
 import com.duocuc.apolo.models.User;
 import com.duocuc.apolo.repositories.UserRepository;
+import com.duocuc.apolo.services.EmailService;
+import com.duocuc.apolo.services.PasswordGenerator;
 import com.duocuc.apolo.utils.JwtTokenUtil;
 import com.duocuc.apolo.repositories.RoleRepository;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -27,13 +30,17 @@ public class UserController {
     private final JwtTokenUtil jwtTokenUtil;
     private final LabClient labClient;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordGenerator passwordGenerator;
+    private final EmailService emailService;
 
-    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil, LabClient labClient, PasswordEncoder passwordEncoder) {
+    public UserController(UserRepository userRepository, RoleRepository roleRepository, JwtTokenUtil jwtTokenUtil, LabClient labClient, PasswordEncoder passwordEncoder, PasswordGenerator passwordGenerator, EmailService emailService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtTokenUtil = jwtTokenUtil;
         this.labClient = labClient;
         this.passwordEncoder = passwordEncoder;
+        this.passwordGenerator = passwordGenerator;
+        this.emailService = emailService    ;
     }
 
      @GetMapping
@@ -161,17 +168,13 @@ public class UserController {
             return ResponseEntity.badRequest()
                     .body(new ApiResponse<>(false, "Usuario no encontrado", null));
         }
-
         User user = userOpt.get();
-
         if (!user.getPassword().equals(request.getPassword())) {
             return ResponseEntity.badRequest()
                     .body(new ApiResponse<>(false, "La contraseña actual no coincide", null));
         }
-
         user.setPassword(request.getNewPassword());
         userRepository.save(user);
-
         return ResponseEntity.ok(new ApiResponse<>(true, "Contraseña actualizada correctamente", null));
     }
 
@@ -184,14 +187,35 @@ public class UserController {
                     .status(404)
                     .body(ApiResponse.failure("Rol Paciente no encontrado"));
         }
-
         // Buscar usuarios que tengan ese rol
         List<User> pacientes = userRepository.findByRole(pacienteRole);
         List<UserDto> dtos = pacientes.stream()
                 .map(UserMapper::toDto)
                 .toList();
-
         return ResponseEntity.ok(ApiResponse.success("Pacientes obtenidos correctamente", dtos));
+    }
+    
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody Map<String, String> body) {
+        System.out.println(">>> BODY RECIBIDO: " + body);
+        String email = body.get("email");
+        System.out.println(">>> EMAIL: " + email);
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        System.out.println(">>> USER OPT: " + userOpt);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.ok(new ApiResponse<>(true,
+                    "Si el correo existe, se enviará un mensaje", "OK"));
+        }
+        User user = userOpt.get();
+        // generar nueva pw
+        String newPassword = passwordGenerator.generateRandomPassword();
+        // encriptar contraseña
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        // enviar correo
+        emailService.sendNewPassword(email, newPassword);
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                "Si el correo existe, se enviará un mensaje", "OK"));
     }
 
 
